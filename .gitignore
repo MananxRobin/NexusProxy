@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+config.local.json
+coverage/
+.nyc_output/
+nexusproxy
+bin/
+dist/
+*.test
+*.log

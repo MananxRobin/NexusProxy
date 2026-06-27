@@ -1,0 +1,15 @@
+[Unit]
+Description=NexusProxy local search gateway
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/nexusproxy --config %h/.config/nexusproxy/config.json
+WorkingDirectory=%h/.config/nexusproxy
+Environment=NEXUS_ENV_FILE=%h/.config/nexusproxy/.env
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

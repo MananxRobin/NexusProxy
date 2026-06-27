@@ -1,0 +1,49 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8787,
+    "apiKey": "local-dev-token",
+    "maxConcurrentRequests": 8
+  },
+  "routing": {
+    "policy": "priority",
+    "maxAttempts": 3,
+    "retryOnStatuses": [429, 500, 502, 503, 504],
+    "defaultCooldownMs": 60000
+  },
+  "providers": [
+    {
+      "id": "brave-primary",
+      "type": "brave",
+      "enabled": true,
+      "priority": 100,
+      "apiKeyEnv": "BRAVE_API_KEY",
+      "defaultParams": {
+        "country": "US",
+        "language": "en",
+        "safeSearch": true
+      }
+    },
+    {
+      "id": "tavily-fallback",
+      "type": "tavily",
+      "enabled": true,
+      "priority": 80,
+      "apiKeyEnv": "TAVILY_API_KEY",
+      "defaultParams": {
+        "searchDepth": "basic"
+      }
+    },
+    {
+      "id": "serper-fallback",
+      "type": "serper",
+      "enabled": true,
+      "priority": 60,
+      "apiKeyEnv": "SERPER_API_KEY",
+      "defaultParams": {
+        "country": "us",
+        "language": "en"
+      }
+    }
+  ]
+}
