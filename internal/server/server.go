@@ -53,6 +53,8 @@ func New(searchGateway *gateway.SearchGateway, apiKey string, envPath string, ma
 	mux.HandleFunc("/dashboard/provider-key-add", server.handleProviderKeyAdd)
 	mux.HandleFunc("/dashboard/refresh-providers", server.handleRefreshProviders)
 	mux.HandleFunc("/healthz", server.handleHealth)
+	mux.HandleFunc("/search", server.handleTavilyCompatibleSearch)
+	mux.HandleFunc("/res/v1/web/search", server.withAuth(server.handleBraveCompatibleSearch))
 	mux.HandleFunc("/v1/status", server.withAuth(server.handleStatus))
 	mux.HandleFunc("/v1/search", server.withAuth(server.handleSearch))
 	return server.withConcurrencyLimit(mux)
@@ -317,13 +319,7 @@ func (server *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		token := r.Header.Get("X-API-Key")
-		if token == "" {
-			auth := r.Header.Get("Authorization")
-			token = strings.TrimPrefix(auth, "Bearer ")
-		}
-
-		if token != server.apiKey {
+		if server.requestAuthToken(r) != server.apiKey {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "missing or invalid local NexusProxy token"})
 			return
 		}

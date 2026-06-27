@@ -1,6 +1,9 @@
 package server
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +15,40 @@ import (
 	"nexusproxy/internal/config"
 	"nexusproxy/internal/gateway"
 )
+
+type fakeSearchAdapter struct{}
+
+func (fakeSearchAdapter) Search(ctx context.Context, request gateway.SearchRequest, provider config.ProviderConfig, client *http.Client) (gateway.ProviderResponse, error) {
+	results := []gateway.SearchResult{
+		{
+			Title:       "First result for " + request.Query,
+			URL:         "https://example.com/first",
+			Snippet:     "First compatible result snippet",
+			PublishedAt: "2026-06-01",
+			Source:      "example.com",
+			Rank:        1,
+			Provider:    provider.ID,
+		},
+		{
+			Title:    "Second result",
+			URL:      "https://example.org/second",
+			Snippet:  "Second compatible result snippet",
+			Source:   "example.org",
+			Rank:     2,
+			Provider: provider.ID,
+		},
+	}
+
+	if request.MaxResults < len(results) {
+		results = results[:request.MaxResults]
+	}
+
+	return gateway.ProviderResponse{
+		OK:      true,
+		Status:  http.StatusOK,
+		Results: results,
+	}, nil
+}
 
 func TestPlaygroundPageRendersSearchUI(t *testing.T) {
 	handler := New(gateway.New(testConfig(), gateway.Options{}), "local-dev-token", ".env", 8)
@@ -126,6 +163,130 @@ func TestAddProviderKeyCreatesNumberedProviderSlot(t *testing.T) {
 	}
 }
 
+func TestTavilyCompatibleSearch(t *testing.T) {
+	handler := New(testCompatGateway(), "local-dev-token", ".env", 8)
+	payload := map[string]any{
+		"query":               "open source search",
+		"max_results":         2,
+		"search_depth":        "basic",
+		"time_range":          "month",
+		"include_answer":      true,
+		"include_raw_content": true,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer local-dev-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var output struct {
+		Query   string `json:"query"`
+		Answer  string `json:"answer"`
+		Results []struct {
+			Title      string  `json:"title"`
+			URL        string  `json:"url"`
+			Content    string  `json:"content"`
+			Score      float64 `json:"score"`
+			RawContent string  `json:"raw_content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
+		t.Fatal(err)
+	}
+	if output.Query != "open source search" {
+		t.Fatalf("expected query to round trip, got %q", output.Query)
+	}
+	if output.Answer == "" {
+		t.Fatal("expected compatibility answer when include_answer is true")
+	}
+	if len(output.Results) != 2 {
+		t.Fatalf("expected 2 Tavily results, got %d", len(output.Results))
+	}
+	if output.Results[0].Content != "First compatible result snippet" {
+		t.Fatalf("expected Tavily content to use snippet, got %q", output.Results[0].Content)
+	}
+	if output.Results[0].RawContent == "" {
+		t.Fatal("expected raw_content when include_raw_content is true")
+	}
+	if output.Results[0].Score <= output.Results[1].Score {
+		t.Fatalf("expected scores to decrease by rank, got %#v", output.Results)
+	}
+}
+
+func TestTavilyCompatibleSearchAcceptsBodyAPIKey(t *testing.T) {
+	handler := New(testCompatGateway(), "local-dev-token", ".env", 8)
+	body := strings.NewReader(`{"api_key":"local-dev-token","query":"body auth","max_results":1}`)
+	request := httptest.NewRequest(http.MethodPost, "/search", body)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected body api_key auth to work, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBraveCompatibleSearch(t *testing.T) {
+	handler := New(testCompatGateway(), "local-dev-token", ".env", 8)
+	request := httptest.NewRequest(http.MethodGet, "/res/v1/web/search?q=open+source&count=2&country=US&search_lang=en&freshness=pm", nil)
+	request.Header.Set("X-Subscription-Token", "local-dev-token")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var output struct {
+		Type  string `json:"type"`
+		Query struct {
+			Original string `json:"original"`
+		} `json:"query"`
+		Web struct {
+			Type    string `json:"type"`
+			Results []struct {
+				Type        string `json:"type"`
+				Title       string `json:"title"`
+				URL         string `json:"url"`
+				Description string `json:"description"`
+				Age         string `json:"age"`
+				Profile     struct {
+					Name string `json:"name"`
+				} `json:"profile"`
+			} `json:"results"`
+		} `json:"web"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
+		t.Fatal(err)
+	}
+	if output.Type != "search" || output.Web.Type != "search" {
+		t.Fatalf("expected Brave search types, got %#v", output)
+	}
+	if output.Query.Original != "open source" {
+		t.Fatalf("expected original query, got %q", output.Query.Original)
+	}
+	if len(output.Web.Results) != 2 {
+		t.Fatalf("expected 2 Brave results, got %d", len(output.Web.Results))
+	}
+	if output.Web.Results[0].Description != "First compatible result snippet" {
+		t.Fatalf("expected Brave description to use snippet, got %q", output.Web.Results[0].Description)
+	}
+	if output.Web.Results[0].Profile.Name != "example.com" {
+		t.Fatalf("expected source profile, got %#v", output.Web.Results[0].Profile)
+	}
+}
+
 func TestConcurrencyLimiterReturnsTooManyRequestsWhenFull(t *testing.T) {
 	server := &Server{limiter: make(chan struct{}, 1)}
 	server.limiter <- struct{}{}
@@ -196,4 +357,24 @@ func testConfig() config.Config {
 			},
 		},
 	}
+}
+
+func testCompatGateway() *gateway.SearchGateway {
+	cfg := testConfig()
+	cfg.Providers = []config.ProviderConfig{
+		{
+			ID:            "fake-primary",
+			Type:          "fake",
+			Priority:      100,
+			APIKey:        "provider-key",
+			DefaultParams: map[string]any{},
+			TimeoutMs:     20000,
+		},
+	}
+
+	return gateway.New(cfg, gateway.Options{
+		Adapters: map[string]gateway.Adapter{
+			"fake": fakeSearchAdapter{},
+		},
+	})
 }

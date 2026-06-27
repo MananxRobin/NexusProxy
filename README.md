@@ -141,9 +141,43 @@ Response shape:
 }
 ```
 
+## Compatible Provider APIs
+
+NexusProxy also exposes provider-compatible endpoints for agents that can change an API base URL but expect Tavily or Brave-shaped requests.
+
+Tavily-compatible search:
+
+```sh
+curl -sS http://127.0.0.1:8787/search \
+  -H 'Authorization: Bearer local-dev-token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "best vector databases for rag",
+    "max_results": 5,
+    "search_depth": "basic",
+    "time_range": "month",
+    "include_answer": true
+  }'
+```
+
+Supported auth: `Authorization: Bearer <NEXUS_API_KEY>`, `X-API-Key`, or Tavily-style body field `"api_key": "<NEXUS_API_KEY>"`.
+
+Brave-compatible web search:
+
+```sh
+curl -sS 'http://127.0.0.1:8787/res/v1/web/search?q=best+vector+databases+for+rag&count=5&country=US&search_lang=en&freshness=pm' \
+  -H 'X-Subscription-Token: local-dev-token'
+```
+
+Supported auth: `X-Subscription-Token: <NEXUS_API_KEY>`, `Authorization: Bearer <NEXUS_API_KEY>`, or `X-API-Key`.
+
+These compatibility endpoints still route through NexusProxy's provider fallback layer. Tavily-only extras such as `include_domains`, `exclude_domains`, and raw page extraction are accepted but not fully implemented in v1.
+
 ## Endpoints
 
 - `POST /v1/search`: normalized search request.
+- `POST /search`: Tavily-compatible search request.
+- `GET /res/v1/web/search`: Brave-compatible web search request.
 - `GET /v1/status`: JSON gateway/provider health, protected by the local API key when configured.
 - `GET /dashboard`: local HTML status dashboard.
 - `GET /playground`: local visual search test page.
