@@ -6,7 +6,27 @@ The v1 target is deliberately narrow: expose one local normalized search endpoin
 
 ## Quick Start
 
-Install the local binary and starter config:
+Install from the latest GitHub Release:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mananambaliya7010/NexusProxy/main/scripts/install.sh | sh
+```
+
+Install a pinned version:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mananambaliya7010/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.1.0 sh
+```
+
+If the repository is published somewhere else, set `NEXUSPROXY_REPO` too:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.sh | NEXUSPROXY_REPO=OWNER/REPO sh
+```
+
+The installer places the binary at `$HOME/.local/bin/nexusproxy`, creates `$HOME/.config/nexusproxy/config.json`, and creates a private `$HOME/.config/nexusproxy/.env` for provider keys.
+
+From a local checkout, the same installer builds from source:
 
 ```sh
 ./scripts/install.sh
@@ -26,6 +46,29 @@ go run ./cmd/nexusproxy --config config.example.json
 ```
 
 The default server listens on `http://127.0.0.1:8787`.
+
+## Releases
+
+Release packages are static Go binaries plus the starter config and service templates. Build them locally with:
+
+```sh
+VERSION=v0.1.0 ./scripts/package-release.sh
+```
+
+This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer expects these GitHub Release assets:
+
+- `nexusproxy-darwin-arm64.tar.gz`
+- `nexusproxy-darwin-amd64.tar.gz`
+- `nexusproxy-linux-arm64.tar.gz`
+- `nexusproxy-linux-amd64.tar.gz`
+- `checksums.txt`
+
+To publish through GitHub Actions:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## Provider Keys
 

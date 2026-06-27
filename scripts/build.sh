@@ -5,6 +5,7 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT_DIR=${OUT_DIR:-"$ROOT_DIR/dist"}
 PLATFORMS=${PLATFORMS:-"darwin/arm64 darwin/amd64 linux/amd64 linux/arm64"}
 GO_BIN=${GO_BIN:-}
+VERSION=${VERSION:-dev}
 
 if [ -z "$GO_BIN" ]; then
 	if command -v go >/dev/null 2>&1; then
@@ -30,7 +31,7 @@ for platform in $PLATFORMS; do
 	echo "building $output"
 	(
 		cd "$ROOT_DIR"
-		CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" "$GO_BIN" build -trimpath -ldflags="-s -w" -o "$output" ./cmd/nexusproxy
+		CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" "$GO_BIN" build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "$output" ./cmd/nexusproxy
 	)
 done
 

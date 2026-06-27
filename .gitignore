@@ -5,7 +5,7 @@
 config.local.json
 coverage/
 .nyc_output/
-nexusproxy
+/nexusproxy
 bin/
 dist/
 *.test
