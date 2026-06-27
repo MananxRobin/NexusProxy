@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-build-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: VERSION=ci make build BUILD_DIR=/tmp/nexusproxy-build
+
+      - name: Package smoke test
+        run: VERSION=ci make release BUILD_DIR=/tmp/nexusproxy-release PLATFORMS=linux/amd64

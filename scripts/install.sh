@@ -2,7 +2,7 @@
 set -eu
 
 APP_NAME=nexusproxy
-DEFAULT_REPO=mananambaliya7010/NexusProxy
+DEFAULT_REPO=mananxrobin/NexusProxy
 
 REPO=${NEXUSPROXY_REPO:-$DEFAULT_REPO}
 VERSION=${NEXUSPROXY_VERSION:-latest}

@@ -9,13 +9,13 @@ The v1 target is deliberately narrow: expose one local normalized search endpoin
 Install from the latest GitHub Release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mananambaliya7010/NexusProxy/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | sh
 ```
 
 Install a pinned version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mananambaliya7010/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.1.0 sh
 ```
 
 If the repository is published somewhere else, set `NEXUSPROXY_REPO` too:
