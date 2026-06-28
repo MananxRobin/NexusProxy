@@ -10,3 +10,5 @@ bin/
 dist/
 *.test
 *.log
+CLAUDE.md
+NexusProxy_Architecture_Plan.pdf
