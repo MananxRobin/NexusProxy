@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -78,4 +80,104 @@ func TestReadPID(t *testing.T) {
 	if pid != 12345 {
 		t.Fatalf("expected pid 12345, got %d", pid)
 	}
+}
+
+func TestUninstallKeepsConfigByDefault(t *testing.T) {
+	binaryPath, configDir, pidPath := makeUninstallFixture(t)
+
+	var out bytes.Buffer
+	err := uninstall(uninstallOptions{
+		BinaryPath: binaryPath,
+		ConfigDir:  configDir,
+		PIDPath:    pidPath,
+		Out:        &out,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(binaryPath); !os.IsNotExist(err) {
+		t.Fatalf("expected binary to be removed, stat err: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, ".env")); err != nil {
+		t.Fatalf("expected config and API keys to remain: %v", err)
+	}
+	if !strings.Contains(out.String(), "Kept config and API keys") {
+		t.Fatalf("expected keep-config message, got:\n%s", out.String())
+	}
+}
+
+func TestUninstallPurgeCanBeDeclined(t *testing.T) {
+	binaryPath, configDir, pidPath := makeUninstallFixture(t)
+
+	var out bytes.Buffer
+	err := uninstall(uninstallOptions{
+		BinaryPath: binaryPath,
+		ConfigDir:  configDir,
+		PIDPath:    pidPath,
+		Purge:      true,
+		In:         strings.NewReader("n\n"),
+		Out:        &out,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(binaryPath); !os.IsNotExist(err) {
+		t.Fatalf("expected binary to be removed, stat err: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, ".env")); err != nil {
+		t.Fatalf("expected declined purge to keep API keys: %v", err)
+	}
+}
+
+func TestUninstallPurgeYesRemovesConfig(t *testing.T) {
+	binaryPath, configDir, pidPath := makeUninstallFixture(t)
+
+	var out bytes.Buffer
+	err := uninstall(uninstallOptions{
+		BinaryPath: binaryPath,
+		ConfigDir:  configDir,
+		PIDPath:    pidPath,
+		Purge:      true,
+		Yes:        true,
+		Out:        &out,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(binaryPath); !os.IsNotExist(err) {
+		t.Fatalf("expected binary to be removed, stat err: %v", err)
+	}
+	if _, err := os.Stat(configDir); !os.IsNotExist(err) {
+		t.Fatalf("expected config dir to be removed, stat err: %v", err)
+	}
+	if !strings.Contains(out.String(), "Removed config and API keys") {
+		t.Fatalf("expected purge message, got:\n%s", out.String())
+	}
+}
+
+func makeUninstallFixture(t *testing.T) (string, string, string) {
+	t.Helper()
+
+	root := t.TempDir()
+	binaryPath := filepath.Join(root, "bin", "nexusproxy")
+	configDir := filepath.Join(root, ".config", "nexusproxy")
+	pidPath := filepath.Join(configDir, "nexusproxy.pid")
+
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(binaryPath, []byte("fake binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, ".env"), []byte("BRAVE_API_KEY=secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	return binaryPath, configDir, pidPath
 }

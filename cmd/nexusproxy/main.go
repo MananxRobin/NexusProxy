@@ -48,6 +48,8 @@ func run(args []string) error {
 			return runKill(args[1:])
 		case "update":
 			return runUpdate(args[1:])
+		case "uninstall":
+			return runUninstall(args[1:])
 		case "serve":
 			return runServer(args[1:])
 		}
@@ -174,10 +176,12 @@ Usage:
   nexusproxy run        Start NexusProxy in the background
   nexusproxy kill       Stop the background NexusProxy process
   nexusproxy update     Update the installed NexusProxy binary
+  nexusproxy uninstall  Remove the binary; keep config and API keys by default
   nexusproxy serve      Run in the foreground for Docker/systemd
 
 Common:
   nexusproxy --version
   nexusproxy setup --provider brave
-  nexusproxy run --foreground`)
+  nexusproxy run --foreground
+  nexusproxy uninstall --purge`)
 }

@@ -300,3 +300,4 @@ echo
 echo "useful:"
 echo "  $APP_CMD kill"
 echo "  $APP_CMD update"
+echo "  $APP_CMD uninstall"

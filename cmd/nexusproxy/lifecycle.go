@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -107,40 +108,7 @@ func runKill(args []string) error {
 		return err
 	}
 
-	pid, err := readPID(*pidPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			fmt.Println("NexusProxy is not running.")
-			return nil
-		}
-		return err
-	}
-
-	if !processRunning(pid) {
-		_ = os.Remove(*pidPath)
-		fmt.Println("NexusProxy was not running; removed stale pid file.")
-		return nil
-	}
-
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-	if err := process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return err
-	}
-
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if !processRunning(pid) {
-			_ = os.Remove(*pidPath)
-			fmt.Println("Stopped NexusProxy.")
-			return nil
-		}
-		time.Sleep(150 * time.Millisecond)
-	}
-
-	return fmt.Errorf("NexusProxy did not stop within 5 seconds; pid %d is still running", pid)
+	return stopBackground(*pidPath, os.Stdout)
 }
 
 func runUpdate(args []string) error {
@@ -199,6 +167,140 @@ func runUpdate(args []string) error {
 	return nil
 }
 
+func runUninstall(args []string) error {
+	flags := flag.NewFlagSet("nexusproxy uninstall", flag.ContinueOnError)
+	binaryPath := flags.String("binary", "", "path to NexusProxy binary to remove")
+	configDir := flags.String("config-dir", defaultConfigDir(), "path to NexusProxy config directory")
+	pidPath := flags.String("pid-file", defaultStatePath("nexusproxy.pid"), "path to background process pid file")
+	purge := flags.Bool("purge", false, "remove config and provider API keys too")
+	yes := flags.Bool("yes", false, "skip confirmation prompts")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if *binaryPath == "" {
+		executable, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		*binaryPath = executable
+	}
+
+	return uninstall(uninstallOptions{
+		BinaryPath: *binaryPath,
+		ConfigDir:  *configDir,
+		PIDPath:    *pidPath,
+		Purge:      *purge,
+		Yes:        *yes,
+		In:         os.Stdin,
+		Out:        os.Stdout,
+	})
+}
+
+type uninstallOptions struct {
+	BinaryPath string
+	ConfigDir  string
+	PIDPath    string
+	Purge      bool
+	Yes        bool
+	In         io.Reader
+	Out        io.Writer
+}
+
+func uninstall(options uninstallOptions) error {
+	if options.In == nil {
+		options.In = os.Stdin
+	}
+	if options.Out == nil {
+		options.Out = os.Stdout
+	}
+	if options.BinaryPath == "" {
+		return errors.New("binary path is required")
+	}
+	if options.ConfigDir == "" || options.ConfigDir == "." || options.ConfigDir == string(filepath.Separator) {
+		return fmt.Errorf("refusing to use unsafe config directory %q", options.ConfigDir)
+	}
+
+	if err := stopBackground(options.PIDPath, options.Out); err != nil {
+		return err
+	}
+
+	removedBinary, err := removeFileIfExists(options.BinaryPath)
+	if err != nil {
+		return fmt.Errorf("remove binary %s: %w", options.BinaryPath, err)
+	}
+	if removedBinary {
+		fmt.Fprintf(options.Out, "Removed binary: %s\n", options.BinaryPath)
+	} else {
+		fmt.Fprintf(options.Out, "Binary was already removed: %s\n", options.BinaryPath)
+	}
+
+	if !options.Purge {
+		fmt.Fprintf(options.Out, "Kept config and API keys: %s\n", options.ConfigDir)
+		fmt.Fprintln(options.Out, "Run nexusproxy uninstall --purge to remove them too.")
+		return nil
+	}
+
+	if !options.Yes {
+		confirmed, err := confirmPurge(options.In, options.Out, options.ConfigDir)
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Fprintf(options.Out, "Kept config and API keys: %s\n", options.ConfigDir)
+			return nil
+		}
+	}
+
+	removedConfig, err := removeDirIfExists(options.ConfigDir)
+	if err != nil {
+		return fmt.Errorf("remove config directory %s: %w", options.ConfigDir, err)
+	}
+	if removedConfig {
+		fmt.Fprintf(options.Out, "Removed config and API keys: %s\n", options.ConfigDir)
+	} else {
+		fmt.Fprintf(options.Out, "Config directory was already removed: %s\n", options.ConfigDir)
+	}
+	return nil
+}
+
+func stopBackground(pidPath string, out io.Writer) error {
+	pid, err := readPID(pidPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintln(out, "NexusProxy is not running.")
+			return nil
+		}
+		return err
+	}
+
+	if !processRunning(pid) {
+		_ = os.Remove(pidPath)
+		fmt.Fprintln(out, "NexusProxy was not running; removed stale pid file.")
+		return nil
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+	if err := process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return err
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if !processRunning(pid) {
+			_ = os.Remove(pidPath)
+			fmt.Fprintln(out, "Stopped NexusProxy.")
+			return nil
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	return fmt.Errorf("NexusProxy did not stop within 5 seconds; pid %d is still running", pid)
+}
+
 func defaultConfigPath() string {
 	if value := os.Getenv("NEXUS_CONFIG"); value != "" {
 		return value
@@ -221,6 +323,16 @@ func defaultEnvPath(configPath string) string {
 		return value
 	}
 	return config.EnvFilePath(configPath)
+}
+
+func defaultConfigDir() string {
+	if value := os.Getenv("NEXUS_CONFIG"); value != "" {
+		return filepath.Dir(value)
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".config", "nexusproxy")
+	}
+	return filepath.Dir(defaultConfigPath())
 }
 
 func defaultStatePath(filename string) string {
@@ -271,4 +383,52 @@ func processRunning(pid int) bool {
 	}
 	err = process.Signal(syscall.Signal(0))
 	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
+func confirmPurge(in io.Reader, out io.Writer, configDir string) (bool, error) {
+	fmt.Fprintf(out, "Remove %s including provider API keys? [y/N]: ", configDir)
+	scanner := bufio.NewScanner(in)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(scanner.Text())) {
+	case "y", "yes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func removeFileIfExists(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	if info.IsDir() {
+		return false, fmt.Errorf("path is a directory")
+	}
+	if err := os.Remove(path); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func removeDirIfExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := os.RemoveAll(path); err != nil {
+		return false, err
+	}
+	return true, nil
 }

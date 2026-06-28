@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts
 Install a pinned version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.2.0 sh
+curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.2.1 sh
 ```
 
 If the repository is published somewhere else, set `NEXUSPROXY_REPO` too:
@@ -54,6 +54,7 @@ Common commands:
 - `nexusproxy run`: start NexusProxy in the background.
 - `nexusproxy kill`: stop the background process.
 - `nexusproxy update`: update the installed binary from GitHub Releases.
+- `nexusproxy uninstall`: remove the binary while keeping config and API keys.
 - `nexusproxy serve`: run in the foreground for Docker, systemd, launchd, or manual debugging.
 
 ## Releases
@@ -61,7 +62,7 @@ Common commands:
 Release packages are static Go binaries plus the starter config and service templates. Build them locally with:
 
 ```sh
-VERSION=v0.2.0 ./scripts/package-release.sh
+VERSION=v0.2.1 ./scripts/package-release.sh
 ```
 
 This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer expects these GitHub Release assets:
@@ -75,8 +76,28 @@ This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer
 To publish through GitHub Actions:
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
+```
+
+## Uninstall
+
+Remove the installed binary and keep config/API keys:
+
+```sh
+nexusproxy uninstall
+```
+
+Remove the binary, config, and provider API keys:
+
+```sh
+nexusproxy uninstall --purge
+```
+
+For non-interactive cleanup:
+
+```sh
+nexusproxy uninstall --purge --yes
 ```
 
 ## Provider Keys
