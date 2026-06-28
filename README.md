@@ -72,7 +72,28 @@ git push origin v0.1.0
 
 ## Provider Keys
 
-Open `http://127.0.0.1:8787/dashboard` and paste provider keys into the **Provider API Keys** panel. NexusProxy saves them to `.env`, hot-loads them into the running gateway, and keeps `.env` ignored by git.
+The easiest setup path is the terminal wizard:
+
+```sh
+nexusproxy setup --config "$HOME/.config/nexusproxy/config.json"
+```
+
+From a source checkout:
+
+```sh
+go run ./cmd/nexusproxy -- setup --config config.example.json
+```
+
+Useful setup flags:
+
+- `--env-file <path>`: save keys somewhere other than the config-adjacent `.env`.
+- `--provider brave`: configure only one provider type. Use `brave`, `tavily`, `serper`, or a configured custom provider type.
+- `--test`: test keys immediately after saving.
+- `--no-test`: save keys without spending a provider probe request.
+
+The setup command shows friendly provider names, hides typed API keys in real terminals, saves secrets to `.env`, and creates numbered keys like `BRAVE_API_KEY_2` when you add another account for the same provider.
+
+You can also open `http://127.0.0.1:8787/dashboard` and paste provider keys into the **Provider API Keys** panel. NexusProxy saves them to `.env`, hot-loads them into the running gateway, and keeps `.env` ignored by git.
 
 If `server.apiKey` is configured, the dashboard key form asks for that local token before saving secrets.
 
