@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,13 +33,21 @@ func main() {
 }
 
 func run(args []string) error {
+	return runWithOutput(args, os.Stdout)
+}
+
+func runWithOutput(args []string, out io.Writer) error {
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
 	}
+	if len(args) == 0 {
+		printHelp(out)
+		return nil
+	}
 	if len(args) > 0 {
 		switch args[0] {
-		case "help":
-			printHelp()
+		case "help", "--help", "-h":
+			printHelp(out)
 			return nil
 		case "setup":
 			return runSetup(args[1:])
@@ -168,8 +177,8 @@ func getenv(key string, fallback string) string {
 	return value
 }
 
-func printHelp() {
-	fmt.Println(`NexusProxy
+func printHelp(out io.Writer) {
+	fmt.Fprintln(out, `NexusProxy
 
 Usage:
   nexusproxy setup      Save provider API keys
