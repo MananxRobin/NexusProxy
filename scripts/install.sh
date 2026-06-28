@@ -153,7 +153,8 @@ local_version() {
 install_from_source() {
 	detect_go
 	build_version=${NEXUSPROXY_BUILD_VERSION:-$(local_version)}
-	BINARY_SOURCE="$BIN_DIR/$APP_NAME"
+	TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/nexusproxy.XXXXXX")
+	BINARY_SOURCE="$TMP_DIR/$APP_NAME"
 	CONFIG_SOURCE="$ROOT_DIR/config.example.json"
 
 	(
@@ -232,6 +233,20 @@ install_config() {
 	fi
 }
 
+install_binary() {
+	target="$BIN_DIR/$APP_NAME"
+	if [ "$BINARY_SOURCE" = "$target" ]; then
+		chmod 0755 "$target"
+		return
+	fi
+
+	staged="$BIN_DIR/.$APP_NAME.tmp.$$"
+	rm -f "$staged"
+	cp "$BINARY_SOURCE" "$staged"
+	chmod 0755 "$staged"
+	mv -f "$staged" "$target"
+}
+
 mkdir -p "$BIN_DIR" "$CONFIG_DIR"
 
 case "$INSTALL_SOURCE" in
@@ -266,10 +281,7 @@ if [ -n "${NEXUSPROXY_BINARY:-}" ]; then
 	BINARY_SOURCE=$NEXUSPROXY_BINARY
 fi
 
-if [ "$BINARY_SOURCE" != "$BIN_DIR/$APP_NAME" ]; then
-	cp "$BINARY_SOURCE" "$BIN_DIR/$APP_NAME"
-fi
-chmod 0755 "$BIN_DIR/$APP_NAME"
+install_binary
 
 install_config
 

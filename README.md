@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts
 Install a pinned version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.2.1 sh
+curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.2.2 sh
 ```
 
 If the repository is published somewhere else, set `NEXUSPROXY_REPO` too:
@@ -62,7 +62,7 @@ Common commands:
 Release packages are static Go binaries plus the starter config and service templates. Build them locally with:
 
 ```sh
-VERSION=v0.2.1 ./scripts/package-release.sh
+VERSION=v0.2.2 ./scripts/package-release.sh
 ```
 
 This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer expects these GitHub Release assets:
@@ -76,8 +76,8 @@ This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer
 To publish through GitHub Actions:
 
 ```sh
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
 ## Uninstall
