@@ -37,8 +37,17 @@ func run(args []string) error {
 	}
 	if len(args) > 0 {
 		switch args[0] {
+		case "help":
+			printHelp()
+			return nil
 		case "setup":
 			return runSetup(args[1:])
+		case "run":
+			return runBackground(args[1:])
+		case "kill":
+			return runKill(args[1:])
+		case "update":
+			return runUpdate(args[1:])
 		case "serve":
 			return runServer(args[1:])
 		}
@@ -51,7 +60,7 @@ func run(args []string) error {
 
 func runServer(args []string) error {
 	flags := flag.NewFlagSet("nexusproxy", flag.ContinueOnError)
-	configPath := flags.String("config", getenv("NEXUS_CONFIG", "config.example.json"), "path to config JSON")
+	configPath := flags.String("config", defaultConfigPath(), "path to config JSON")
 	envPathFlag := flags.String("env-file", "", "path to provider key env file")
 	versionFlag := flags.Bool("version", false, "print version and exit")
 	if err := flags.Parse(args); err != nil {
@@ -65,14 +74,14 @@ func runServer(args []string) error {
 
 	envPath := *envPathFlag
 	if envPath == "" {
-		envPath = config.EnvFilePath(*configPath)
+		envPath = defaultEnvPath(*configPath)
 	}
 	return serve(*configPath, envPath)
 }
 
 func runSetup(args []string) error {
 	flags := flag.NewFlagSet("nexusproxy setup", flag.ContinueOnError)
-	configPath := flags.String("config", getenv("NEXUS_CONFIG", "config.example.json"), "path to config JSON")
+	configPath := flags.String("config", defaultConfigPath(), "path to config JSON")
 	envPathFlag := flags.String("env-file", "", "path to provider key env file")
 	provider := flags.String("provider", "all", "provider type to configure, or all")
 	testKeys := flags.Bool("test", false, "test provider keys after saving")
@@ -94,7 +103,7 @@ func runSetup(args []string) error {
 
 	envPath := *envPathFlag
 	if envPath == "" {
-		envPath = config.EnvFilePath(*configPath)
+		envPath = defaultEnvPath(*configPath)
 	}
 
 	return setup.Run(context.Background(), setup.Options{
@@ -155,4 +164,20 @@ func getenv(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func printHelp() {
+	fmt.Println(`NexusProxy
+
+Usage:
+  nexusproxy setup      Save provider API keys
+  nexusproxy run        Start NexusProxy in the background
+  nexusproxy kill       Stop the background NexusProxy process
+  nexusproxy update     Update the installed NexusProxy binary
+  nexusproxy serve      Run in the foreground for Docker/systemd
+
+Common:
+  nexusproxy --version
+  nexusproxy setup --provider brave
+  nexusproxy run --foreground`)
 }

@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts
 Install a pinned version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/mananxrobin/NexusProxy/main/scripts/install.sh | NEXUSPROXY_VERSION=v0.2.0 sh
 ```
 
 If the repository is published somewhere else, set `NEXUSPROXY_REPO` too:
@@ -32,27 +32,36 @@ From a local checkout, the same installer builds from source:
 ./scripts/install.sh
 ```
 
-Run it:
+Set provider keys and start NexusProxy:
 
 ```sh
-NEXUS_ENV_FILE="$HOME/.config/nexusproxy/.env" \
-  "$HOME/.local/bin/nexusproxy" --config "$HOME/.config/nexusproxy/config.json"
+nexusproxy setup
+nexusproxy run
 ```
 
 For development, you can run directly from source:
 
 ```sh
-go run ./cmd/nexusproxy --config config.example.json
+go run ./cmd/nexusproxy -- setup --config config.example.json
+go run ./cmd/nexusproxy -- serve --config config.example.json
 ```
 
 The default server listens on `http://127.0.0.1:8787`.
+
+Common commands:
+
+- `nexusproxy setup`: save provider keys.
+- `nexusproxy run`: start NexusProxy in the background.
+- `nexusproxy kill`: stop the background process.
+- `nexusproxy update`: update the installed binary from GitHub Releases.
+- `nexusproxy serve`: run in the foreground for Docker, systemd, launchd, or manual debugging.
 
 ## Releases
 
 Release packages are static Go binaries plus the starter config and service templates. Build them locally with:
 
 ```sh
-VERSION=v0.1.0 ./scripts/package-release.sh
+VERSION=v0.2.0 ./scripts/package-release.sh
 ```
 
 This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer expects these GitHub Release assets:
@@ -66,8 +75,8 @@ This writes platform tarballs and `checksums.txt` to `dist/`. The curl installer
 To publish through GitHub Actions:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 ## Provider Keys
@@ -75,7 +84,7 @@ git push origin v0.1.0
 The easiest setup path is the terminal wizard:
 
 ```sh
-nexusproxy setup --config "$HOME/.config/nexusproxy/config.json"
+nexusproxy setup
 ```
 
 From a source checkout:

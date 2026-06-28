@@ -283,5 +283,20 @@ echo "installed $BIN_DIR/$APP_NAME"
 echo "config: $CONFIG_FILE"
 echo "env:    $ENV_FILE"
 echo
-echo "run:"
-echo "  NEXUS_ENV_FILE=$ENV_FILE $BIN_DIR/$APP_NAME --config $CONFIG_FILE"
+APP_CMD=$APP_NAME
+case ":$PATH:" in
+*":$BIN_DIR:"*)
+	;;
+*)
+	APP_CMD="$BIN_DIR/$APP_NAME"
+	echo "tip: add $BIN_DIR to PATH to run nexusproxy from anywhere"
+	echo
+	;;
+esac
+echo "next:"
+echo "  $APP_CMD setup"
+echo "  $APP_CMD run"
+echo
+echo "useful:"
+echo "  $APP_CMD kill"
+echo "  $APP_CMD update"
